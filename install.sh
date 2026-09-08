@@ -7,7 +7,7 @@ echo "🚀 Starting automated Codespace environment configuration..."
 # 1. Update and Upgrade System Packages (Apt)
 # --------------------------------------------------------
 echo "📦 Updating package lists and upgrading system packages..."
-sudo apt-get update && sudo apt-get upgrade -y
+sudo apt-get update -y
 
 
 # --------------------------------------------------------
