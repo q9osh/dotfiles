@@ -1,68 +1,68 @@
-#!/bin/bash
-# install.sh - Automated Personalization via Standalone Installer
+#!/usr/bin/env bash
+# install.sh – dotfiles bootstrap for GitHub Codespaces
+set -euo pipefail
 
-echo "🚀 Starting automated Codespace environment configuration..."
+log() { printf '\n%s\n' "$*"; }
 
-# --------------------------------------------------------
-# 1. Update and Upgrade System Packages (Apt)
-# --------------------------------------------------------
-echo "📦 Updating package lists and upgrading system packages..."
-sudo apt-get update -y
-
+log "🚀 Configuring Codespace..."
 
 # --------------------------------------------------------
-# 2. Force Standalone Claude Code Native Installer
+# 1. Claude Code (native installer)
 # --------------------------------------------------------
-echo "🤖 Executing standalone native installer for Claude Code..."
-# Installs directly from Anthropic's production asset URL
-curl -fsSL https://claude.ai/install.sh | bash
-
-# Ensure the local binary directory exists and is integrated into the PATH
+log "🤖 Installing Claude Code..."
 export PATH="$HOME/.local/bin:$PATH"
+if ! command -v claude >/dev/null 2>&1; then
+  curl -fsSL --retry 3 https://claude.ai/install.sh | bash
+fi
+claude --version || log "⚠️  'claude' not found on PATH after install"
 
+# Make ~/.local/bin available in future shells (idempotent: no duplicate lines)
+PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  touch "$rc"
+  grep -qxF "$PATH_LINE" "$rc" || echo "$PATH_LINE" >> "$rc"
+done
 
 # --------------------------------------------------------
-# 3. Bypass Claude Code Onboarding Configuration Screen
+# 2. Claude Code config: skip onboarding, dark theme
+#    (only written if absent, so nothing gets clobbered)
 # --------------------------------------------------------
-echo "⚙️ Suppressing Claude Code introductory onboarding..."
-mkdir -p ~/.claude
-
-# Mark onboarding completed to skip the initial prompt wall
-cat << 'EOF' > ~/.claude.json
+log "⚙️  Seeding Claude Code config..."
+mkdir -p "$HOME/.claude"
+if [ ! -f "$HOME/.claude.json" ]; then
+  cat > "$HOME/.claude.json" <<'EOF'
 {
-  "hasCompletedOnboarding": true
+  "hasCompletedOnboarding": true,
+  "theme": "dark"
 }
 EOF
-
-# Seed a default UI experience config file
-cat << 'EOF' > ~/.claude/settings.json
-{
-  "theme": "dark",
-  "verbose": false
-}
-EOF
-
+fi
 
 # --------------------------------------------------------
-# 4. Enforce Zsh as the Default VS Code Shell Profile
+# 3. Zsh as default VS Code terminal (remote machine settings)
 # --------------------------------------------------------
-echo "🐚 Changing the default terminal profile to Zsh..."
-mkdir -p ~/.string_config/Code/User
-mkdir -p ~/.config/Code/User
+if command -v zsh >/dev/null 2>&1; then
+  log "🐚 Setting zsh as default terminal profile..."
+  MACHINE_DIR="$HOME/.vscode-remote/data/Machine"
+  MACHINE_SETTINGS="$MACHINE_DIR/settings.json"
+  KEY='terminal.integrated.defaultProfile.linux'
+  mkdir -p "$MACHINE_DIR"
 
-# Ensure standard user environments automatically recognize the new binary path
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+  if [ ! -s "$MACHINE_SETTINGS" ]; then
+    printf '{\n  "%s": "zsh"\n}\n' "$KEY" > "$MACHINE_SETTINGS"
+  elif command -v jq >/dev/null 2>&1; then
+    tmp=$(mktemp)
+    if jq --arg k "$KEY" '.[$k] = "zsh"' "$MACHINE_SETTINGS" > "$tmp"; then
+      mv "$tmp" "$MACHINE_SETTINGS"
+    else
+      rm -f "$tmp"
+      log "⚠️  Could not merge into $MACHINE_SETTINGS (comments in file?) – left unchanged"
+    fi
+  else
+    log "⚠️  $MACHINE_SETTINGS exists and jq is missing – left unchanged"
+  fi
+else
+  log "⚠️  zsh not installed in this image – keeping default shell"
+fi
 
-VSCODE_SETTINGS=$(cat << 'EOF'
-{
-  "terminal.integrated.defaultProfile.linux": "zsh"
-}
-EOF
-)
-
-# Apply terminal profile preferences across configuration paths
-echo "$VSCODE_SETTINGS" > ~/.string_config/Code/User/settings.json
-echo "$VSCODE_SETTINGS" > ~/.config/Code/User/settings.json
-
-echo "✨ Environment deployment successfully finished!"
+log "✨ Done."
