@@ -85,4 +85,21 @@ if command -v zsh >/dev/null 2>&1; then
   grep -qxF "$SHELL_LINE" "$HOME/.zshrc" || echo "$SHELL_LINE" >> "$HOME/.zshrc"
 fi
 
+# --------------------------------------------------------
+# 5. Ghostty terminal support + UTF-8 locale
+# --------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Teach the Codespace the xterm-ghostty terminal type (installs to ~/.terminfo)
+if [ -f "$SCRIPT_DIR/xterm-ghostty.terminfo" ] && ! infocmp xterm-ghostty >/dev/null 2>&1; then
+  log "👻 Installing Ghostty terminfo..."
+  tic -x "$SCRIPT_DIR/xterm-ghostty.terminfo"
+fi
+
+# Default to a UTF-8 locale when the SSH session doesn't set one
+LOCALE_LINE='export LANG="${LANG:-C.UTF-8}"'
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  grep -qxF "$LOCALE_LINE" "$rc" || echo "$LOCALE_LINE" >> "$rc"
+done
+
 log "✨ Done."
