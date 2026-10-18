@@ -66,11 +66,11 @@ else
 fi
 
 # --------------------------------------------------------
-# 4. Zsh as login shell (affects SSH sessions)
+# 4. Switch interactive SSH sessions from bash to zsh
 # --------------------------------------------------------
-if command -v zsh >/dev/null 2>&1 && [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]; then
-  log "🐚 Setting zsh as login shell..."
-  sudo chsh -s "$(command -v zsh)" "$USER"
+if command -v zsh >/dev/null 2>&1; then
+  ZSH_SWITCH='[[ $- == *i* && -n "$SSH_CONNECTION" && -z "$ZSH_VERSION" ]] && exec zsh -l'
+  grep -qxF "$ZSH_SWITCH" "$HOME/.bashrc" || echo "$ZSH_SWITCH" >> "$HOME/.bashrc"
 fi
 
 log "✨ Done."
