@@ -66,11 +66,19 @@ else
 fi
 
 # --------------------------------------------------------
-# 4. Switch interactive SSH sessions from bash to zsh
+# 4. zsh for SSH sessions and tmux
 # --------------------------------------------------------
 if command -v zsh >/dev/null 2>&1; then
-  ZSH_SWITCH='[[ $- == *i* && -n "$SSH_CONNECTION" && -z "$ZSH_VERSION" ]] && exec zsh -l'
+  ZSH_PATH=$(command -v zsh)
+
+  # Hand interactive SSH sessions from bash over to zsh
+  ZSH_SWITCH='[[ $- == *i* && -n "$SSH_CONNECTION" && -z "$ZSH_VERSION" ]] && SHELL=$(command -v zsh) exec zsh -l'
   grep -qxF "$ZSH_SWITCH" "$HOME/.bashrc" || echo "$ZSH_SWITCH" >> "$HOME/.bashrc"
+
+  # Make tmux open zsh in every new window and pane
+  TMUX_LINE="set -g default-shell $ZSH_PATH"
+  touch "$HOME/.tmux.conf"
+  grep -qxF "$TMUX_LINE" "$HOME/.tmux.conf" || echo "$TMUX_LINE" >> "$HOME/.tmux.conf"
 fi
 
 log "✨ Done."
