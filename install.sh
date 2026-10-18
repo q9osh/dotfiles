@@ -86,15 +86,14 @@ if command -v zsh >/dev/null 2>&1; then
 fi
 
 # --------------------------------------------------------
-# 5. Ghostty terminal support + UTF-8 locale
+# 5. Ghostty compatibility + UTF-8 locale
 # --------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Teach the Codespace the xterm-ghostty terminal type (installs to ~/.terminfo)
-if [ -f "$SCRIPT_DIR/xterm-ghostty.terminfo" ] && ! infocmp xterm-ghostty >/dev/null 2>&1; then
-  log "👻 Installing Ghostty terminfo..."
-  tic -x "$SCRIPT_DIR/xterm-ghostty.terminfo"
-fi
+# Ghostty identifies as xterm-ghostty, which doesn't render reliably here;
+# fall back to the widely supported xterm-256color.
+# .zshenv is read first by every zsh, before .zshrc and the prompt theme.
+TERM_LINE='if [[ "$TERM" == xterm-ghostty ]]; then export TERM=xterm-256color; fi'
+touch "$HOME/.zshenv"
+grep -qxF "$TERM_LINE" "$HOME/.zshenv" || echo "$TERM_LINE" >> "$HOME/.zshenv"
 
 # Default to a UTF-8 locale when the SSH session doesn't set one
 LOCALE_LINE='export LANG="${LANG:-C.UTF-8}"'
