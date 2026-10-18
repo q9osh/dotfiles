@@ -79,6 +79,10 @@ if command -v zsh >/dev/null 2>&1; then
   TMUX_LINE="set -g default-shell $ZSH_PATH"
   touch "$HOME/.tmux.conf"
   grep -qxF "$TMUX_LINE" "$HOME/.tmux.conf" || echo "$TMUX_LINE" >> "$HOME/.tmux.conf"
+
+  # zsh corrects $SHELL itself, however it was started
+  SHELL_LINE='export SHELL=$(command -v zsh)'
+  grep -qxF "$SHELL_LINE" "$HOME/.zshrc" || echo "$SHELL_LINE" >> "$HOME/.zshrc"
 fi
 
 log "✨ Done."
