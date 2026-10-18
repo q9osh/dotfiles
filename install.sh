@@ -65,4 +65,12 @@ else
   log "⚠️  zsh not installed in this image – keeping default shell"
 fi
 
+# --------------------------------------------------------
+# 4. Zsh as login shell (affects SSH sessions)
+# --------------------------------------------------------
+if command -v zsh >/dev/null 2>&1 && [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]; then
+  log "🐚 Setting zsh as login shell..."
+  sudo chsh -s "$(command -v zsh)" "$USER"
+fi
+
 log "✨ Done."
