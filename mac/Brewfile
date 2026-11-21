@@ -6,4 +6,4 @@ cask "ghostty"
 cask "visual-studio-code"
 cask "font-meslo-lg-nerd-font"
 
-vscode "GitHub.codespaces"
+vscode "github.codespaces"

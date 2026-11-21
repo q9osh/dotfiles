@@ -1,2 +1,14 @@
-# Replace this file with your own Ghostty config.
-font-family = MesloLGS Nerd Font Mono
+shell-integration-features = ssh-terminfo
+
+font-family = "MesloLGS Nerd Font Mono"
+font-size = 14
+
+background = 000000
+foreground = ffffff
+
+palette = 1=#CD0000
+palette = 2=#00CD00
+palette = 9=#FF0000
+palette = 10=#00FF00
+
+background-opacity = 0.85

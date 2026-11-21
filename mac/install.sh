@@ -50,13 +50,7 @@ if [[ -e "$HOME/.config/ghostty/config" ]]; then
 fi
 
 # --------------------------------------------------------
-# 4. Finder: keep folders on top when sorting by name
-# --------------------------------------------------------
-defaults write com.apple.finder _FXSortFoldersFirst -bool true
-killall Finder 2>/dev/null || true
-
-# --------------------------------------------------------
-# 5. GitHub CLI login incl. Codespaces permission
+# 4. GitHub CLI login incl. Codespaces permission
 # --------------------------------------------------------
 if ! gh auth status >/dev/null 2>&1; then
   log "🔑 Signing in to GitHub (choose HTTPS, answer 'n' to 'Authenticate Git')..."
@@ -68,7 +62,4 @@ fi
 
 log "✨ Done. Left to do by hand:
    • Open VS Code once, sign in with GitHub (also for Settings Sync).
-   • Finder: in any folder press ⌘J – Group By None, Sort By Name, icon size,
-     grid spacing, Show item info – then click 'Use as Defaults'.
-     Set the iCloud Drive top level and the Desktop the same way by hand.
    • Open a new Ghostty window and run: gh cs code"
