@@ -1,0 +1,9 @@
+brew "gh"
+brew "zsh-autosuggestions"
+brew "zsh-syntax-highlighting"
+
+cask "ghostty"
+cask "visual-studio-code"
+cask "font-meslo-lg-nerd-font"
+
+vscode "GitHub.codespaces"

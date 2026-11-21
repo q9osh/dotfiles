@@ -1,0 +1,15 @@
+# Prompt: user@mac ~/dir (branch) %
+autoload -Uz vcs_info add-zsh-hook
+zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:git:*' formats ' (%b)'
+add-zsh-hook precmd vcs_info
+setopt PROMPT_SUBST
+PROMPT='%n@mac %~${vcs_info_msg_0_} %# '
+
+# Tab completion (incl. gh, from Homebrew)
+fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+autoload -Uz compinit && compinit
+
+# Plugins (installed by mac/Brewfile)
+source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh  # must stay last
