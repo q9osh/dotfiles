@@ -12,7 +12,9 @@ log "🚀 Configuring Codespace..."
 log "🤖 Installing Claude Code..."
 export PATH="$HOME/.local/bin:$PATH"
 if ! command -v claude >/dev/null 2>&1; then
-  curl -fsSL --retry 3 https://claude.ai/install.sh | bash
+  # Allowed to fail, so a network hiccup doesn't skip the shell setup below
+  curl -fsSL --retry 3 https://claude.ai/install.sh | bash \
+    || log "⚠️  Claude Code install failed – rerun ./install.sh later"
 fi
 claude --version || log "⚠️  'claude' not found on PATH after install"
 
@@ -25,17 +27,22 @@ done
 
 # --------------------------------------------------------
 # 2. Claude Code config: skip onboarding, dark theme
-#    (only written if absent, so nothing gets clobbered)
+#    (merged into an existing file, so other settings are kept)
 # --------------------------------------------------------
 log "⚙️  Seeding Claude Code config..."
-mkdir -p "$HOME/.claude"
-if [ ! -f "$HOME/.claude.json" ]; then
-  cat > "$HOME/.claude.json" <<'EOF'
-{
-  "hasCompletedOnboarding": true,
-  "theme": "dark"
-}
-EOF
+CLAUDE_JSON="$HOME/.claude.json"
+if [ ! -s "$CLAUDE_JSON" ]; then
+  printf '{\n  "hasCompletedOnboarding": true,\n  "theme": "dark"\n}\n' > "$CLAUDE_JSON"
+elif command -v jq >/dev/null 2>&1; then
+  tmp=$(mktemp)
+  if jq '.hasCompletedOnboarding = true | .theme = "dark"' "$CLAUDE_JSON" > "$tmp"; then
+    mv "$tmp" "$CLAUDE_JSON"
+  else
+    rm -f "$tmp"
+    log "⚠️  Could not merge into $CLAUDE_JSON – left unchanged"
+  fi
+else
+  log "⚠️  $CLAUDE_JSON exists and jq is missing – left unchanged"
 fi
 
 # --------------------------------------------------------
