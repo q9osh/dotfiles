@@ -1,0 +1,22 @@
+# Prompt: @user ➜ ~/dir (branch) $   (exact GitHub Codespaces style)
+autoload -Uz vcs_info add-zsh-hook
+zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:git:*' formats       ' %F{cyan}(%B%F{red}%b%%b%F{cyan})%f'
+zstyle ':vcs_info:git:*' actionformats ' %F{cyan}(%B%F{red}%b%%b%F{cyan})%f'
+zstyle ':vcs_info:git+set-message:*' hooks codespace-branch
++vi-codespace-branch() {
+  # Same branch lookup as Codespaces: branch name, or short hash if detached
+  hook_com[branch]=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null \
+                  || git --no-optional-locks rev-parse --short HEAD 2>/dev/null)
+}
+add-zsh-hook precmd vcs_info
+setopt PROMPT_SUBST
+PROMPT='%F{green}@%n%f %(?.➜.%B%F{red}➜%b%f) %B%F{blue}%~%b%f${vcs_info_msg_0_} %(!.#.$) '
+
+# Tab completion (incl. gh, from Homebrew)
+fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+autoload -Uz compinit && compinit
+
+# Plugins: brew install zsh-autosuggestions zsh-syntax-highlighting
+source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh  # must stay last
