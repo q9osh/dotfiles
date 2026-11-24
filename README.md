@@ -43,7 +43,7 @@ In Ghostty on the Mac, run `dev` (or `dev <part of the name or repo>`). It asks 
 
 ### Undoing it
 
-`uninstall.sh` removes the `dev` setup again, on the Mac or in a codespace (`bash ~/Downloads/dotfiles-main/uninstall.sh` on the Mac): `dev`'s tmux sessions and SSH connections, its files, the lines it added to `~/.zshrc` and `~/.ssh/config`, and tmux with the dependencies nothing else needs. Everything else from `install.sh` stays. Files you changed are kept as `*.backup-<date-time>`, and tmux stays installed while other tmux sessions run. Safe to rerun.
+`uninstall-dev.sh` removes only the `dev` setup, on the Mac or in a codespace (`bash ~/Downloads/dotfiles-main/uninstall-dev.sh` on the Mac): `dev`'s tmux sessions and SSH connections, its files, the lines it added to `~/.zshrc` and `~/.ssh/config`, and tmux with the dependencies nothing else needs. Everything else from `install.sh` stays. Files you changed are kept as `*.backup-<date-time>`, and tmux stays installed while other tmux sessions run. Safe to rerun.
 
 ## Changing the Mac config later
 
