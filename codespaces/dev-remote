@@ -10,15 +10,28 @@ set -euo pipefail
 
 export PATH="$HOME/.local/bin:$PATH"
 
+# ssh runs this through a non-login shell, which skips what Codespaces sets up
+# for SSH login shells: the Codespaces secrets as environment variables (e.g.
+# CLAUDE_CODE_OAUTH_TOKEN, so Claude Code is logged in) and WORKING_DIRECTORY.
+# Load them the same way, with Codespaces' own script.
+if [[ -r /etc/profile.d/codespaces.sh ]]; then
+  set +u   # the script uses variables that may be unset
+  # shellcheck disable=SC1091
+  . /etc/profile.d/codespaces.sh
+  set -u
+fi
+
 # The Mac may send a locale this Codespace doesn't have; fall back to UTF-8
 [[ "$(locale charmap 2>/dev/null)" == UTF-8 ]] || export LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 # ssh doesn't pass COLORTERM on; Ghostty and the Mac tmux do true color
 export COLORTERM="${COLORTERM:-truecolor}"
 
-# The repo folder: /workspaces/<repo>, else the first folder in /workspaces
-dir=""
-[[ -n "${GITHUB_REPOSITORY:-}" ]] && dir="/workspaces/${GITHUB_REPOSITORY##*/}"
+# The repo folder: the codespace's working directory, else /workspaces/<repo>,
+# else the first folder in /workspaces
+dir="${WORKING_DIRECTORY:-}"
+[[ -d "$dir" ]] || dir=""
+[[ -z "$dir" && -n "${GITHUB_REPOSITORY:-}" ]] && dir="/workspaces/${GITHUB_REPOSITORY##*/}"
 if [[ ! -d "$dir" ]]; then
   for d in /workspaces/*/; do
     [[ -d "$d" ]] && { dir="${d%/}"; break; }
