@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# codespaces/uninstall.sh – undo what the `dev` setup added to a codespace
-# (called by ../uninstall.sh): tmux, its config and dev-remote. Claude Code
+# codespaces/uninstall-dev.sh – undo what the `dev` setup added to a codespace
+# (called by ../uninstall-dev.sh): tmux, its config and dev-remote. Claude Code
 # and the shell setup from install.sh stay. Safe to rerun.
 set -euo pipefail
 

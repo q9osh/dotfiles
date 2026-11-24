@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mac/uninstall.sh – undo what the `dev` setup added to the Mac: tmux, the
+# mac/uninstall-dev.sh – undo what the `dev` setup added to the Mac: tmux, the
 # `dev` command and its tmux and SSH configs. The rest of mac/install.sh
 # (Homebrew, the other Brewfile entries, zsh and Ghostty configs, gh login)
 # stays.
@@ -11,7 +11,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 log() { printf '\n%s\n' "$*"; }
 
-[[ "$(uname -s)" == Darwin ]] || { echo "mac/uninstall.sh is for macOS only." >&2; exit 1; }
+[[ "$(uname -s)" == Darwin ]] || { echo "mac/uninstall-dev.sh is for macOS only." >&2; exit 1; }
 
 # Delete a file install copied; if it was changed since, keep it as a backup
 remove_file() {
