@@ -2,6 +2,7 @@
 # codespaces/install.sh – Codespaces setup (called by ../install.sh)
 set -euo pipefail
 
+DIR="$(cd "$(dirname "$0")" && pwd)"
 log() { printf '\n%s\n' "$*"; }
 
 log "🚀 Configuring Codespace..."
@@ -73,7 +74,27 @@ else
 fi
 
 # --------------------------------------------------------
-# 4. zsh for SSH sessions and tmux
+# 4. tmux + dev-remote for the Mac's `dev` layout
+#    (config is replaced on every run; section 5 adds the shell line)
+# --------------------------------------------------------
+if ! command -v tmux >/dev/null 2>&1; then
+  log "📦 Installing tmux..."
+  if command -v apt-get >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    # Allowed to fail, like the Claude Code install above
+    { sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tmux >/dev/null; } \
+      || log "⚠️  tmux install failed – rerun ./install.sh later"
+  else
+    log "⚠️  No apt-get or sudo in this image – install tmux yourself"
+  fi
+fi
+
+log "🪟 Installing tmux config and dev-remote..."
+cp "$DIR/tmux.conf" "$HOME/.tmux.conf"
+mkdir -p "$HOME/.local/bin"
+install -m 755 "$DIR/dev-remote" "$HOME/.local/bin/dev-remote"
+
+# --------------------------------------------------------
+# 5. zsh for SSH sessions and tmux
 # --------------------------------------------------------
 if command -v zsh >/dev/null 2>&1; then
   ZSH_PATH=$(command -v zsh)
@@ -93,7 +114,7 @@ if command -v zsh >/dev/null 2>&1; then
 fi
 
 # --------------------------------------------------------
-# 5. Ghostty compatibility + UTF-8 locale
+# 6. Ghostty compatibility + UTF-8 locale
 # --------------------------------------------------------
 # Ghostty identifies as xterm-ghostty, which doesn't render reliably here;
 # fall back to the widely supported xterm-256color.
