@@ -43,14 +43,43 @@ install_file() {
 log "📝 Copying configs..."
 install_file "$DIR/zshrc" "$HOME/.zshrc"
 install_file "$DIR/ghostty/config.ghostty" "$HOME/.config/ghostty/config.ghostty"
+install_file "$DIR/tmux.conf" "$HOME/.tmux.conf"
+install_file "$DIR/bin/dev" "$HOME/.local/bin/dev"
+chmod +x "$HOME/.local/bin/dev"
+mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+install_file "$DIR/ssh/codespaces.conf" "$HOME/.ssh/config.d/codespaces.conf"
 touch "$HOME/.hushlogin"   # no "Last login" line in new terminals
 
 if [[ -e "$HOME/.config/ghostty/config" ]]; then
   log "⚠️  ~/.config/ghostty/config also exists and overrides config.ghostty – delete it if it's an old copy."
 fi
 
+# macOS 14+ ships the tmux-256color terminfo that mac/tmux.conf uses
+if ! /usr/bin/infocmp tmux-256color >/dev/null 2>&1; then
+  log "⚠️  This macOS has no tmux-256color terminfo – in ~/.tmux.conf use screen-256color instead."
+fi
+
 # --------------------------------------------------------
-# 4. GitHub CLI login incl. Codespaces permission
+# 4. SSH: Codespaces settings at the top of ~/.ssh/config
+#    (an Include further down would only apply inside a Host block)
+# --------------------------------------------------------
+SSH_CONFIG="$HOME/.ssh/config"
+INCLUDE_LINE='Include config.d/codespaces.conf'
+touch "$SSH_CONFIG"
+if grep -qxF "$INCLUDE_LINE" "$SSH_CONFIG"; then
+  :
+elif [[ -L "$SSH_CONFIG" ]]; then
+  log "⚠️  ~/.ssh/config is a symlink – add this as its first line yourself: $INCLUDE_LINE"
+else
+  log "🔌 Adding Codespaces settings to ~/.ssh/config..."
+  tmp=$(mktemp "$HOME/.ssh/config.XXXXXX")
+  { printf '# Codespaces for `dev` (dotfiles) – keep above any Host or Match line\n%s\n\n' "$INCLUDE_LINE"
+    cat "$SSH_CONFIG"; } > "$tmp"
+  mv "$tmp" "$SSH_CONFIG"
+fi
+
+# --------------------------------------------------------
+# 5. GitHub CLI login incl. Codespaces permission
 # --------------------------------------------------------
 if ! gh auth status >/dev/null 2>&1; then
   log "🔑 Signing in to GitHub (choose HTTPS, answer 'n' to 'Authenticate Git')..."
@@ -62,4 +91,5 @@ fi
 
 log "✨ Done. Left to do by hand:
    • Open VS Code once, sign in with GitHub (also for Settings Sync).
-   • Open a new Ghostty window and run: gh cs code"
+   • Open a new Ghostty window and run: dev
+     (tmux layout with Claude Code in a codespace; or gh cs code for VS Code)"

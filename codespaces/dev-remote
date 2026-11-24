@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# dev-remote – runs in the Codespace for the panes of the Mac's `dev` layout
+# (installed to ~/.local/bin by codespaces/install.sh).
+#
+#   dev-remote claude   Claude Code agent view in the repo folder. Sessions run
+#                       in Claude Code's background supervisor, so they keep
+#                       going when SSH drops; this just shows them again.
+#   dev-remote shell    zsh inside tmux, which keeps it alive across drops.
+set -euo pipefail
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# The Mac may send a locale this Codespace doesn't have; fall back to UTF-8
+[[ "$(locale charmap 2>/dev/null)" == UTF-8 ]] || export LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+# ssh doesn't pass COLORTERM on; Ghostty and the Mac tmux do true color
+export COLORTERM="${COLORTERM:-truecolor}"
+
+# The repo folder: /workspaces/<repo>, else the first folder in /workspaces
+dir=""
+[[ -n "${GITHUB_REPOSITORY:-}" ]] && dir="/workspaces/${GITHUB_REPOSITORY##*/}"
+if [[ ! -d "$dir" ]]; then
+  for d in /workspaces/*/; do
+    [[ -d "$d" ]] && { dir="${d%/}"; break; }
+  done
+fi
+[[ -d "$dir" ]] || dir="$HOME"
+
+case "${1:-}" in
+  claude)
+    command -v claude >/dev/null 2>&1 \
+      || { echo "Claude Code is not installed here – rerun the dotfiles install.sh."; exit 1; }
+    cd "$dir"
+    exec claude agents
+    ;;
+  shell)
+    command -v tmux >/dev/null 2>&1 \
+      || { echo "tmux is not installed here – rerun the dotfiles install.sh."; exit 1; }
+    # -A: attach if it exists; -D: detach clients of dropped connections
+    exec tmux new-session -A -D -s shell -c "$dir"
+    ;;
+  *)
+    echo "usage: dev-remote claude|shell" >&2
+    exit 2
+    ;;
+esac

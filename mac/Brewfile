@@ -1,4 +1,5 @@
 brew "gh"
+brew "tmux"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
 

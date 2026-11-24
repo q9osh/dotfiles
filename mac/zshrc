@@ -13,6 +13,9 @@ add-zsh-hook precmd vcs_info
 setopt PROMPT_SUBST
 PROMPT='%F{green}@%n%f %(?.➜.%B%F{red}➜%b%f) %B%F{blue}%~%b%f${vcs_info_msg_0_} %(!.#.$) '
 
+# Own scripts (dev)
+export PATH="$HOME/.local/bin:$PATH"
+
 # Tab completion (incl. gh, from Homebrew)
 fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
 autoload -Uz compinit && compinit

@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# dev – one tmux window for working in a Codespace (installed to ~/.local/bin
+# by mac/install.sh):
+#
+#   ┌─────────────────────────────┬──────────────────────┐
+#   │                             │ Codespace shell      │
+#   │  Claude Code agent view     │ (kept alive by tmux  │
+#   │  in the Codespace           │  in the Codespace)   │
+#   │                             ├──────────────────────┤
+#   │                             │ Mac shell            │
+#   └─────────────────────────────┴──────────────────────┘
+#
+#   dev [filter]   Attach to the layout of a codespace, building it first if
+#                  needed. With several codespaces it asks which one; the filter
+#                  (part of the name, repo or display name) narrows the choice.
+#
+# Each codespace gets its own tmux session, named after the codespace.
+# When reattaching, `dev` reconnects Codespace panes whose connection is gone
+# (starting the codespace if it's stopped). A dropped pane also offers to
+# reconnect itself (Enter); Prefix + R restarts the current pane.
+set -euo pipefail
+
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+HOSTS_DIR="$HOME/.ssh/config.d/codespaces"   # see mac/ssh/codespaces.conf
+
+die() { printf 'dev: %s\n' "$*" >&2; exit 1; }
+q() { printf '%q' "$1"; }
+
+# Open the shared SSH connection (ControlMaster) to a codespace if it isn't
+# open. The tmux server opens it (needs a running server): gh's tunnel process
+# stays in the session of whatever started it and ends on SIGHUP. Started
+# from a terminal or pane, closing that would cut every pane off; started
+# from the tmux server, which runs detached, only ssh ends it, when the
+# connection closes.
+open_master() {
+  local host="$1" log="${TMPDIR:-/tmp}/dev-ssh-$1.log"
+  ssh -O check "$host" 2>/dev/null && return 0
+  rm -f "$log.rc"
+  tmux run-shell "$(q "$(command -v ssh)") -n -o LogLevel=error $(q "$host") true \
+    </dev/null >/dev/null 2>$(q "$log"); echo \$? >$(q "$log.rc"); true"
+  [[ "$(cat "$log.rc" 2>/dev/null)" == 0 ]] || { cat "$log" >&2; return 1; }
+}
+
+# --------------------------------------------------------
+# Pane mode, run by the two Codespace panes: dev --pane claude|shell <host>
+# Both share one SSH connection (ControlMaster), see open_master.
+# --------------------------------------------------------
+if [[ "${1:-}" == --pane ]]; then
+  kind="$2" host="$3"
+  # Tell the remote side it's in tmux (TERM_PROGRAM=tmux, set by tmux here):
+  # ssh doesn't pass it on, and without it Claude Code doesn't turn on the
+  # extended keys that make Shift+Enter work. The Codespace's sshd only
+  # accepts LANG and LC_* (SetEnv), so it goes on the command line.
+  envs=""
+  [[ -n "${TERM_PROGRAM:-}" ]] && envs+=" TERM_PROGRAM=$(printf %q "$TERM_PROGRAM")"
+  [[ -n "${TERM_PROGRAM_VERSION:-}" ]] && envs+=" TERM_PROGRAM_VERSION=$(printf %q "$TERM_PROGRAM_VERSION")"
+  # Record kind and state on the pane, so `dev` can reconnect waiting panes
+  mark() { tmux set-option -p -t "${TMUX_PANE:-}" "$1" "$2" 2>/dev/null || true; }
+  mark @dev_kind "$kind"
+  # Killed by tmux (respawn, pane closed): leave without marking "waiting",
+  # which would overwrite the state of this pane's replacement
+  trap 'exit 0' HUP TERM
+  while true; do
+    mark @dev_state connected
+    rc=0
+    ssh -O check "$host" 2>/dev/null || echo "Connecting to the codespace (starts it if it's stopped)..."
+    if open_master "$host"; then
+      ssh -t "$host" "exec env$envs \$HOME/.local/bin/dev-remote $kind" || rc=$?
+    else
+      rc=255
+    fi
+    case "$rc" in
+      255) msg="Connection to the codespace lost" ;;
+      127) msg="dev-remote not found in the codespace – are these dotfiles enabled for Codespaces?" ;;
+      *)   msg="Closed" ;;
+    esac
+    mark @dev_state waiting
+    printf '\n\033[33m%s.\033[0m Press Enter to reconnect, Ctrl-C to close this pane.\n' "$msg"
+    read -r || exit 0
+  done
+fi
+
+for cmd in gh tmux ssh; do
+  command -v "$cmd" >/dev/null 2>&1 || die "$cmd not found – run the dotfiles install.sh"
+done
+
+# --------------------------------------------------------
+# 1. Choose a codespace
+# --------------------------------------------------------
+all=$(gh codespace list --json name,repository,displayName,state --jq \
+  '.[] | [.name, .repository, (if (.displayName // "") == "" then .name else .displayName end), .state] | @tsv') \
+  || die "could not list codespaces (check: gh auth status)"
+[[ -n "$all" ]] || die "no codespaces yet – create one on github.com or with: gh codespace create"
+
+list="$all"
+if [[ $# -gt 0 ]]; then
+  list=$(grep -i -F -- "$1" <<<"$all") || die "no codespace matches '$1'"
+fi
+
+if [[ $(grep -c '' <<<"$list") -eq 1 ]]; then
+  pick="$list"
+else
+  labels=()
+  while IFS=$'\t' read -r name repo display state; do
+    open=""
+    tmux has-session -t "=$name" 2>/dev/null && open=", open in tmux"
+    labels+=("$repo – $display ($state$open)")
+  done <<<"$list"
+  PS3="Codespace: "
+  select choice in "${labels[@]}"; do
+    [[ -n "${choice:-}" ]] && break
+  done
+  [[ -n "${choice:-}" ]] || exit 1
+  pick=$(sed -n "${REPLY}p" <<<"$list")
+fi
+IFS=$'\t' read -r name repo display state <<<"$pick"
+host="cs.$name"
+
+# Forget the SSH config of codespaces that no longer exist
+for f in "$HOSTS_DIR"/*; do
+  [[ -e "$f" ]] || continue
+  grep -qxF -- "$(basename "$f")" <<<"$(cut -f1 <<<"$all")" || rm -f "$f"
+done
+
+attach() {
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux switch-client -t "=$name"
+  else
+    exec tmux attach-session -t "=$name"
+  fi
+}
+
+# --------------------------------------------------------
+# Connect: fresh SSH config for this codespace (codespace names and branches
+# change; gh starts the codespace if it's stopped, showing progress), then
+# open the shared connection, so the panes reuse it instead of racing to open
+# their own.
+# --------------------------------------------------------
+refresh_config() {
+  local tmp
+  mkdir -p "$HOSTS_DIR" "$HOME/.ssh/cm"
+  chmod 700 "$HOME/.ssh" "$HOME/.ssh/cm"
+  echo "Connecting to $repo – $display..."
+  tmp=$(mktemp "$HOSTS_DIR/.$name.XXXXXX")   # 600, as ssh requires; * skips dotfiles
+  if gh codespace ssh --config -c "$name" | sed -E 's/^Host cs\.([^.]+)\..*/Host cs.\1/' >"$tmp" \
+     && grep -qxF "Host $host" "$tmp"; then
+    mv "$tmp" "$HOSTS_DIR/$name"
+  else
+    rm -f "$tmp"
+    [[ -f "$HOSTS_DIR/$name" ]] || { echo "dev: could not get the SSH config for $name" >&2; return 1; }
+    echo "dev: could not refresh the SSH config – using the previous one" >&2
+  fi
+}
+connect() {
+  refresh_config || return 1
+  open_master "$host" || { echo "dev: could not connect to $host" >&2; return 1; }
+}
+
+# --------------------------------------------------------
+# 2. Layout already there: reconnect the Codespace panes that need it, attach
+# --------------------------------------------------------
+if tmux has-session -t "=$name" 2>/dev/null; then
+  # A codespace that isn't running (stopped overnight, say) can't have live
+  # connections: drop the stale shared one and reconnect both Codespace
+  # panes. Otherwise reconnect only the panes waiting at "Press Enter".
+  redo=()
+  while read -r pane kind pstate; do
+    [[ -n "$kind" ]] || continue
+    if [[ "$state" != Available || "$pstate" == waiting ]]; then
+      redo+=("$pane")
+    fi
+  done < <(tmux list-panes -s -t "=$name" -F '#{pane_id} #{@dev_kind} #{@dev_state}')
+
+  if [[ ${#redo[@]} -gt 0 ]]; then
+    [[ "$state" == Available ]] || ssh -O exit "$host" 2>/dev/null || true
+    if connect; then
+      for pane in "${redo[@]}"; do
+        tmux respawn-pane -k -t "$pane"
+      done
+    else
+      read -r -p "Press Enter to open the layout anyway (its panes can reconnect later)... " || true
+    fi
+  fi
+  attach
+  exit 0
+fi
+
+# --------------------------------------------------------
+# 3. New layout: start it with the Mac pane, so the tmux server runs and can
+#    open the shared connection, then add the Codespace panes
+# --------------------------------------------------------
+refresh_config || exit 1
+cols=$(tput cols 2>/dev/null || echo 200)
+lines=$(tput lines 2>/dev/null || echo 50)
+
+mac=$(tmux new-session -d -P -F '#{pane_id}' -s "$name" -n "${repo##*/}" \
+  -x "$cols" -y "$lines" -c "$PWD")
+open_master "$host" || { tmux kill-session -t "=$name"; die "could not connect to $host"; }
+claude=$(tmux split-window -h -b -l 65% -P -F '#{pane_id}' -t "$mac" \
+  "$(q "$SELF") --pane claude $(q "$host")")
+shell=$(tmux split-window -v -b -P -F '#{pane_id}' -t "$mac" \
+  "$(q "$SELF") --pane shell $(q "$host")")
+
+tmux set-option -p -t "$claude" @title "Claude Code · ${repo##*/}"
+tmux set-option -p -t "$shell" @title "Codespace shell"
+tmux set-option -p -t "$mac" @title "Mac"
+tmux set-option -w -t "$claude" pane-border-status top
+tmux set-option -w -t "$claude" pane-border-format ' #{@title} '
+tmux select-pane -t "$claude"
+
+attach
