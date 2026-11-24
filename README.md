@@ -41,6 +41,10 @@ In Ghostty on the Mac, run `dev` (or `dev <part of the name or repo>`). It asks 
 - Mouse: click to switch panes, drag borders to resize, wheel to scroll. Copying in any pane (also remote) lands on the Mac clipboard.
 - First time in a new codespace: Claude Code asks to log in (`/login`) and to trust the repo folder.
 
+### Undoing it
+
+`uninstall.sh` removes the `dev` setup again, on the Mac or in a codespace (`bash ~/Downloads/dotfiles-main/uninstall.sh` on the Mac): `dev`'s tmux sessions and SSH connections, its files, the lines it added to `~/.zshrc` and `~/.ssh/config`, and tmux with the dependencies nothing else needs. Everything else from `install.sh` stays. Files you changed are kept as `*.backup-<date-time>`, and tmux stays installed while other tmux sessions run. Safe to rerun.
+
 ## Changing the Mac config later
 
 Edit the file in `mac/` here (on github.com or in a codespace), then download the ZIP again and rerun the script. Changed files on the Mac are backed up before being replaced.
