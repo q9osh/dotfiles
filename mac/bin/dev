@@ -3,7 +3,7 @@
 # by mac/install.sh):
 #
 #   ┌─────────────────────────────┬──────────────────────┐
-#   │                             │ Codespace shell      │
+#   │                             │ Codespace            │
 #   │  Claude Code agent view     │ (kept alive by tmux  │
 #   │  in the Codespace           │  in the Codespace)   │
 #   │                             ├──────────────────────┤
@@ -202,7 +202,7 @@ shell=$(tmux split-window -v -b -P -F '#{pane_id}' -t "$mac" \
   "$(q "$SELF") --pane shell $(q "$host")")
 
 tmux set-option -p -t "$claude" @title "Claude Code · ${repo##*/}"
-tmux set-option -p -t "$shell" @title "Codespace shell"
+tmux set-option -p -t "$shell" @title "Codespace"
 tmux set-option -p -t "$mac" @title "Mac"
 tmux set-option -w -t "$claude" pane-border-status top
 tmux set-option -w -t "$claude" pane-border-format ' #{@title} '

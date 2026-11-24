@@ -25,7 +25,7 @@ In Ghostty on the Mac, run `dev` (or `dev <part of the name or repo>`). It asks 
 
 ```
 ┌─────────────────────────────┬──────────────────────┐
-│                             │ Codespace shell      │
+│                             │ Codespace            │
 │  Claude Code agent view     │                      │
 │  in the codespace's repo    ├──────────────────────┤
 │                             │ Mac shell            │
